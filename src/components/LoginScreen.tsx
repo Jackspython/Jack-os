@@ -16,7 +16,11 @@ import {
   RefreshCw, 
   AlertCircle, 
   CheckCircle2,
-  LockKeyhole
+  LockKeyhole,
+  Settings,
+  Globe,
+  Wifi,
+  WifiOff
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { apiFetch } from "../utils/api";
@@ -67,6 +71,15 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
   const [resetOtp, setResetOtp] = useState("");
   const [resetNewPassword, setResetNewPassword] = useState("");
 
+  // Mode 5: API Connection Settings
+  const [showApiSettings, setShowApiSettings] = useState(false);
+  const [apiServerInput, setApiServerInput] = useState(() => {
+    return localStorage.getItem("jack_os_api_server_url") || "";
+  });
+  const [apiTesting, setApiTesting] = useState(false);
+  const [apiTestResult, setApiTestResult] = useState<"success" | "error" | "">("");
+  const [apiTestMessage, setApiTestMessage] = useState("");
+
   // Simulated Boot sequence
   useEffect(() => {
     const steps = [
@@ -94,6 +107,70 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
     }, 450);
     return () => clearInterval(interval);
   }, []);
+
+  // API Gateway configuration helper
+  const handleTestAndSaveApi = async () => {
+    sound.playClick();
+    setApiTesting(true);
+    setApiTestResult("");
+    setApiTestMessage("");
+
+    const targetUrl = apiServerInput.trim().replace(/\/+$/, "");
+    if (!targetUrl) {
+      setApiTesting(false);
+      setApiTestResult("error");
+      setApiTestMessage("API Server URL cannot be empty. Click Reset to revert to default settings.");
+      sound.playError();
+      return;
+    }
+
+    try {
+      const res = await fetch(`${targetUrl}/api/health`, {
+        method: "GET",
+        headers: { "Accept": "application/json" }
+      });
+
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        const text = await res.text();
+        if (text.trim().startsWith("<") || text.toLowerCase().includes("<!doctype")) {
+          setApiTesting(false);
+          setApiTestResult("error");
+          setApiTestMessage("HTML Response Detected: The API URL returned HTML instead of JSON. Ensure your server.ts backend is running and you are not pointing to a static hosting directory.");
+          sound.playError();
+          return;
+        }
+      }
+
+      const data = await res.json();
+      if (data && (data.status === "ok" || data.success)) {
+        setApiTesting(false);
+        setApiTestResult("success");
+        setApiTestMessage("Connection established successfully! Server is online and saved.");
+        localStorage.setItem("jack_os_api_server_url", targetUrl);
+        sound.playSuccess();
+      } else {
+        setApiTesting(false);
+        setApiTestResult("error");
+        setApiTestMessage("Invalid response payload from API health check endpoint.");
+        sound.playError();
+      }
+    } catch (err: any) {
+      setApiTesting(false);
+      setApiTestResult("error");
+      setApiTestMessage(err.message || "Network request failed. Ensure server is running and CORS is enabled.");
+      sound.playError();
+    }
+  };
+
+  const handleResetApiUrl = () => {
+    sound.playClick();
+    localStorage.removeItem("jack_os_api_server_url");
+    setApiServerInput("");
+    setApiTestResult("success");
+    setApiTestMessage("Reset to default system server.");
+    sound.playSuccess();
+  };
 
   // Standard username + password Sign In
   const handleStandardSignIn = async (e: React.FormEvent) => {
@@ -810,6 +887,95 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
             )}
           </div>
         )}
+
+        {/* API Connection Gateway Panel Toggle */}
+        <div className="mt-6 pt-5 border-t border-slate-900/60 font-mono text-xs">
+          <button
+            type="button"
+            onClick={() => { sound.playClick(); setShowApiSettings(!showApiSettings); }}
+            className="flex items-center gap-2 mx-auto text-[10px] text-cyan-500/70 hover:text-cyan-400 transition-colors uppercase tracking-wider font-bold cursor-pointer"
+          >
+            <Settings className="w-3.5 h-3.5 animate-spin-slow" />
+            {showApiSettings ? "Hide Server Gateway Settings" : "Configure Mobile API Server Gateway"}
+          </button>
+
+          <AnimatePresence>
+            {showApiSettings && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden mt-4 text-left"
+              >
+                <div className="p-4 bg-slate-950 border border-slate-900/80 rounded-xl space-y-3.5">
+                  <div className="flex items-center gap-2 text-cyan-400 font-bold uppercase text-[9px] tracking-wider">
+                    <Globe className="w-3.5 h-3.5" /> API Server Connection Configuration
+                  </div>
+                  <p className="text-[9px] text-slate-400 leading-relaxed font-mono">
+                    Android apps running on <code>file://</code> or <code>http://localhost</code> require a live API endpoint to process logins and scrape operations. If you are using an Android Studio emulator, use <code>http://10.0.2.2:3000</code> to connect to your host computer.
+                  </p>
+
+                  <div className="space-y-2 font-mono">
+                    <label className="block text-[8px] font-bold text-slate-500 uppercase">
+                      API Server Gateway Domain
+                    </label>
+                    <div className="flex gap-1.5">
+                      <input
+                        type="text"
+                        className="flex-1 bg-slate-900 border border-slate-850 text-slate-200 px-3 py-2 rounded-lg text-[11px] font-mono focus:border-cyan-500 outline-none placeholder:text-slate-700"
+                        placeholder="e.g. http://10.0.2.2:3000 or https://yourdomain.com"
+                        value={apiServerInput}
+                        onChange={(e) => setApiServerInput(e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleTestAndSaveApi}
+                        disabled={apiTesting}
+                        className="px-3 py-2 bg-cyan-600 hover:bg-cyan-500 text-slate-100 font-bold rounded-lg text-[10px] uppercase transition-colors disabled:opacity-50 cursor-pointer"
+                      >
+                        {apiTesting ? "Testing..." : "Test & Save"}
+                      </button>
+                      {localStorage.getItem("jack_os_api_server_url") && (
+                        <button
+                          type="button"
+                          onClick={handleResetApiUrl}
+                          className="px-2.5 py-2 bg-slate-900 hover:bg-slate-850 border border-slate-800 text-slate-400 hover:text-slate-200 rounded-lg text-[10px] uppercase transition-colors cursor-pointer"
+                        >
+                          Reset
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {apiTestResult && (
+                    <div className={`p-2.5 rounded-lg border text-[10px] leading-relaxed flex items-start gap-2 font-mono ${
+                      apiTestResult === "success" 
+                        ? "bg-emerald-950/10 border-emerald-500/20 text-emerald-400" 
+                        : "bg-red-950/10 border-red-500/20 text-red-400"
+                    }`}>
+                      {apiTestResult === "success" ? (
+                        <CheckCircle2 className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                      ) : (
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                      )}
+                      <div>
+                        <span className="font-bold block uppercase tracking-wider text-[8px] mb-0.5">
+                          {apiTestResult === "success" ? "Connection Verified" : "Verification Failed"}
+                        </span>
+                        {apiTestMessage}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="p-2 bg-slate-900/40 rounded-lg text-[9px] text-slate-500 text-center font-mono">
+                    Current active endpoint: <code className="text-slate-300 font-semibold">{localStorage.getItem("jack_os_api_server_url") || "Default Cloud Gateway"}</code>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
         {/* Global Footer Controls */}
         <div className="mt-8 text-center text-[10px] text-slate-500 font-mono">

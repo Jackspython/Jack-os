@@ -9,14 +9,16 @@ export function getApiUrl(path: string): string {
 
   const origin = window.location.origin;
 
-  // Detect WebView context
+  // Detect WebView/Native container context (exclude typical desktop browser localhost ports)
   const isWebview =
     window.location.protocol === "file:" ||
     window.location.protocol === "capacitor:" ||
     window.location.protocol === "ionic:" ||
-    origin.includes("localhost") ||
-    origin.includes("127.0.0.1") ||
-    !origin.startsWith("http");
+    (typeof window !== "undefined" && (window as any).Capacitor) ||
+    navigator.userAgent.includes("Capacitor") ||
+    // If it's localhost but NOT running on standard development ports like 3000, 5173, etc.,
+    // or if the origin doesn't start with http/https, treat it as WebView
+    (!origin.startsWith("http") || (origin.includes("localhost") && !origin.includes(":3000") && !origin.includes(":5173") && !origin.includes(":5174")));
 
   if (isWebview) {
     // The deployed backend server domain
