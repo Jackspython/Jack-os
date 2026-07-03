@@ -4,8 +4,66 @@ import { Copy, Check, ShieldAlert, Key, HelpCircle, Eye, EyeOff, Hash, Wifi, Rad
 import { motion } from "motion/react";
 
 export default function AppCatalog() {
-  const [activeTab, setActiveTab] = useState<"hash" | "password" | "steg" | "wallet" | "wifi">("password");
+  const [activeTab, setActiveTab] = useState<"hash" | "password" | "steg" | "wallet" | "wifi" | "appwrapper">("password");
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // 6. Mobile App / Sync State & Logic
+  const [apiServerUrl, setApiServerUrl] = useState(() => {
+    return localStorage.getItem("jack_os_api_server_url") || window.location.origin;
+  });
+  const [testUrlInput, setTestUrlInput] = useState(apiServerUrl);
+  const [connStatus, setConnStatus] = useState<"idle" | "testing" | "online" | "offline" | "html_error">("idle");
+  const [connError, setConnError] = useState("");
+
+  const handleTestConnection = async () => {
+    sound.playClick();
+    setConnStatus("testing");
+    setConnError("");
+    try {
+      const targetUrl = testUrlInput.trim().replace(/\/+$/, "");
+      const res = await fetch(`${targetUrl}/api/health`, {
+        method: "GET",
+        headers: { "Accept": "application/json" }
+      });
+      
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        const text = await res.text();
+        if (text.trim().startsWith("<") || text.toLowerCase().includes("<!doctype")) {
+          setConnStatus("html_error");
+          setConnError("DOCTYPE HTML Detected: The API URL returned HTML instead of JSON. Ensure your server.ts backend is running and you are not pointing to a static hosting service like Netlify/Vercel/GitHub Pages without a backend.");
+          sound.playError();
+          return;
+        }
+      }
+      
+      const data = await res.json();
+      if (data && (data.status === "ok" || data.success)) {
+        setConnStatus("online");
+        localStorage.setItem("jack_os_api_server_url", targetUrl);
+        setApiServerUrl(targetUrl);
+        sound.playSuccess();
+      } else {
+        setConnStatus("offline");
+        setConnError("Invalid response payload from API health check endpoint.");
+        sound.playError();
+      }
+    } catch (err: any) {
+      setConnStatus("offline");
+      setConnError(err.message || "Network request failed. Ensure the server is online and CORS is enabled.");
+      sound.playError();
+    }
+  };
+
+  const handleResetConnection = () => {
+    sound.playClick();
+    localStorage.removeItem("jack_os_api_server_url");
+    const orig = window.location.origin;
+    setApiServerUrl(orig);
+    setTestUrlInput(orig);
+    setConnStatus("idle");
+    setConnError("");
+  };
 
   const copyToClipboard = (text: string, id: string) => {
     sound.playClick();
@@ -227,11 +285,20 @@ export default function AppCatalog() {
 
         <button
           onClick={() => { sound.playClick(); setActiveTab("wifi"); }}
-          className={`px-5 py-4 text-xs font-bold font-mono cursor-pointer whitespace-nowrap ${
+          className={`px-5 py-4 text-xs font-bold font-mono border-r border-slate-800/80 cursor-pointer whitespace-nowrap ${
             activeTab === "wifi" ? "bg-slate-900 text-cyan-400 border-b-2 border-b-cyan-500" : "text-slate-400 hover:text-slate-200"
           }`}
         >
           📶 WIFI SCANNER
+        </button>
+
+        <button
+          onClick={() => { sound.playClick(); setActiveTab("appwrapper"); }}
+          className={`px-5 py-4 text-xs font-bold font-mono cursor-pointer whitespace-nowrap ${
+            activeTab === "appwrapper" ? "bg-slate-900 text-cyan-400 border-b-2 border-b-cyan-500" : "text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          📱 MOBILE APP & SYNC
         </button>
       </div>
 
@@ -609,7 +676,166 @@ export default function AppCatalog() {
             )}
           </div>
         )}
+
+        {/* MOBILE APP & SYNC */}
+        {activeTab === "appwrapper" && (
+          <div className="space-y-6">
+            <div className="border border-slate-800 bg-slate-950/60 p-5 rounded-2xl space-y-4">
+              <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
+                <Globe className="w-4 h-4 text-cyan-400" /> API SERVER & LIVE SYNCHRONIZATION
+              </h3>
+              <p className="text-xs text-slate-400 leading-relaxed font-mono">
+                When running as a packaged app (e.g., APK, IPA, or Electron), the client runs on <code className="text-yellow-400">file://</code> or <code className="text-yellow-400">capacitor://</code>. To execute OSINT, Scrapers, or Scanners, the app must connect to your live hosted node backend server.
+              </p>
+
+              <div className="space-y-3 font-mono">
+                <div>
+                  <label className="block text-[10px] text-slate-500 font-bold mb-1.5 uppercase">Active API Server URL</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={testUrlInput}
+                      onChange={(e) => setTestUrlInput(e.target.value)}
+                      placeholder="e.g. https://your-server-domain.com"
+                      className="flex-1 bg-slate-900 border border-slate-800 text-slate-100 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-cyan-500 font-mono"
+                    />
+                    <button
+                      onClick={handleTestConnection}
+                      disabled={connStatus === "testing"}
+                      className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-slate-100 font-bold rounded-xl text-xs transition-colors cursor-pointer"
+                    >
+                      {connStatus === "testing" ? "TESTING..." : "TEST & SAVE"}
+                    </button>
+                    {apiServerUrl !== window.location.origin && (
+                      <button
+                        onClick={handleResetConnection}
+                        className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs transition-colors cursor-pointer"
+                        title="Reset to local origin"
+                      >
+                        RESET
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Status indicator */}
+                <div className="p-3.5 bg-slate-900/60 border border-slate-850 rounded-xl space-y-2 text-xs">
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400">Connection Link:</span>
+                    <span className="text-slate-300 font-semibold">{apiServerUrl}</span>
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400">Status Check:</span>
+                    {connStatus === "idle" && (
+                      <span className="text-slate-500 font-bold">READY TO VERIFY</span>
+                    )}
+                    {connStatus === "testing" && (
+                      <span className="text-cyan-400 animate-pulse font-bold">VERIFYING ENDPOINT...</span>
+                    )}
+                    {connStatus === "online" && (
+                      <span className="text-emerald-400 font-bold flex items-center gap-1">
+                        <Check className="w-3.5 h-3.5" /> ONLINE (SAVED)
+                      </span>
+                    )}
+                    {connStatus === "offline" && (
+                      <span className="text-rose-400 font-bold flex items-center gap-1">
+                        <AlertCircle className="w-3.5 h-3.5" /> OFFLINE / UNREACHABLE
+                      </span>
+                    )}
+                    {connStatus === "html_error" && (
+                      <span className="text-amber-400 font-bold flex items-center gap-1" title="Returned HTML instead of JSON">
+                        <ShieldAlert className="w-3.5 h-3.5" /> DOCTYPE HTML ERROR
+                      </span>
+                    )}
+                  </div>
+
+                  {connError && (
+                    <div className="mt-2 p-2.5 bg-red-950/10 border border-red-950/30 rounded-lg text-[11px] text-red-400 leading-relaxed font-mono">
+                      <span className="font-extrabold block mb-0.5">⚠️ DIAGNOSTIC:</span>
+                      {connError}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* capacitor guides */}
+            <div className="space-y-4 font-sans text-xs">
+              <h4 className="text-slate-200 font-bold font-mono tracking-wider text-xs">HOW TO RESOLVE THE "DOCTYPE HTML ERROR" FOREVER</h4>
+              <p className="text-slate-400 leading-relaxed">
+                The infamous <strong>Doctype/HTML error</strong> (unexpected token <code className="text-yellow-400 font-mono">&lt;</code>) occurs when the client app fetches relative paths like <code className="text-cyan-400 font-mono">/api/auth/login</code> while running purely as static client assets. Since there is no actual backend listening on the client's origin, the static file provider serves the default SPA <code className="text-slate-200 font-mono">index.html</code> (which begins with <code className="text-yellow-400 font-mono">&lt;!DOCTYPE html&gt;</code>) instead of JSON, crashing the parser.
+              </p>
+              <div className="p-3.5 bg-slate-950 border border-slate-850 rounded-xl space-y-1.5 font-mono text-[11px]">
+                <p className="text-emerald-400 font-bold">✓ HOW TO FIX IN YOUR EMBEDDED APP:</p>
+                <p className="text-slate-400">• Enter your live, hosted Node/Express backend domain above (e.g. <code>https://your-node-backend.com</code>) and click "TEST & SAVE".</p>
+                <p className="text-slate-400">• This forces all <code>apiFetch</code> queries to call your true cloud backend instantly, bypassing local origin errors completely!</p>
+              </div>
+
+              <h4 className="text-slate-200 font-bold font-mono tracking-wider text-xs pt-2">INSTANT HOT UPDATES IN MOBILE APP (RECOMMENDED METHOD)</h4>
+              <p className="text-slate-400 leading-relaxed">
+                To have your Android/iOS app <strong>automatically synchronize and update</strong> whenever you push a change to your GitHub/website without requiring any store rebuilds, you should use the <strong>Hosted WebView Mirror Mode</strong>. 
+              </p>
+              
+              <div className="space-y-3 font-mono">
+                <div className="flex justify-between items-center text-[10px] text-slate-500 font-bold">
+                  <span>CAPACITOR.CONFIG.JSON FOR INSTANT WEB SYNC</span>
+                  <button
+                    onClick={() => copyToClipboard(`{\n  "appId": "io.jackos.hub",\n  "appName": "Jack OS Hub",\n  "webDir": "dist",\n  "server": {\n    "url": "${testUrlInput.startsWith("http") ? testUrlInput : "https://ais-pre-wxfip43a7ukx4nv7cnckob-368257013395.asia-east1.run.app"}",\n    "cleartext": true\n  }\n}`, "cap")}
+                    className="flex items-center gap-1 hover:text-cyan-400 text-slate-400 transition-colors cursor-pointer"
+                  >
+                    {copiedId === "cap" ? (
+                      <>
+                        <Check className="w-3 h-3 text-emerald-400" /> COPIED!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3 h-3" /> COPY CODE
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                <pre className="p-4 bg-slate-950 text-cyan-400/95 rounded-xl border border-slate-850 text-[11px] overflow-x-auto leading-relaxed">
+{`{
+  "appId": "io.jackos.hub",
+  "appName": "Jack OS Hub",
+  "webDir": "dist",
+  "server": {
+    "url": "${testUrlInput.startsWith("http") ? testUrlInput : "https://ais-pre-wxfip43a7ukx4nv7cnckob-368257013395.asia-east1.run.app"}",
+    "cleartext": true
+  }
+}`}
+                </pre>
+              </div>
+
+              <div className="space-y-3 font-mono text-[11px] text-slate-400">
+                <p className="text-slate-200 font-bold font-sans text-xs pt-2">3-STEP BUILD GUIDE FROM YOUR GITHUB EXPORT:</p>
+                <div className="space-y-2 pl-2 border-l-2 border-slate-800">
+                  <p>
+                    <span className="text-cyan-400 font-bold">1. INSTALL CAPACITOR IN YOUR GITHUB CODE:</span><br />
+                    <code>npm install @capacitor/core @capacitor/cli @capacitor/android</code>
+                  </p>
+                  <p>
+                    <span className="text-cyan-400 font-bold">2. INITIALIZE AND PASTE CAPACITOR CONFIG:</span><br />
+                    <code>npx cap init</code> (then paste the JSON block shown above into your <code>capacitor.config.json</code>)
+                  </p>
+                  <p>
+                    <span className="text-cyan-400 font-bold">3. COMPILE AND BUILD YOUR APK:</span><br />
+                    <code>npm run build && npx cap add android && npx cap sync && npx cap open android</code>
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-3.5 bg-cyan-950/10 border border-cyan-900/30 rounded-xl text-slate-400 leading-relaxed font-mono text-[11px] space-y-1.5">
+                <p className="text-cyan-300 font-bold">🌟 THE DYNAMIC HOT-UPDATE BENEFIT:</p>
+                <p>Because Capacitor connects directly to the server URL above, any time you push new modifications to your live hosted website, <strong>every client app automatically loads the fresh updates instantly</strong> on loading or next boot. No new Play Store or App Store releases are ever required!</p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 }
+

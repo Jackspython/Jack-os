@@ -2,22 +2,16 @@ import React, { useState, useEffect } from "react";
 import { sound } from "./components/AudioEngine";
 import LoginScreen from "./components/LoginScreen";
 import TerminalApp from "./components/TerminalApp";
-import ScraperSuite from "./components/ScraperSuite";
-import ApiExtractor from "./components/ApiExtractor";
-import AnonymitySuite from "./components/AnonymitySuite";
-import ScriptPacker from "./components/ScriptPacker";
-import ScriptRunner from "./components/ScriptRunner";
+import OsintGitSuite from "./components/OsintGitSuite";
 import NetworkScanner from "./components/NetworkScanner";
 import AppCatalog from "./components/AppCatalog";
 import TelegramSettings from "./components/TelegramSettings";
-import MobileAppCenter from "./components/MobileAppCenter";
+import Dashboard from "./components/Dashboard";
+import PythonEncryptor from "./components/PythonEncryptor";
 import { User } from "./types";
 import { 
   Shield, 
   Terminal, 
-  Globe, 
-  Code2, 
-  PlayCircle, 
   Activity, 
   LayoutGrid, 
   Bot, 
@@ -28,18 +22,25 @@ import {
   Menu,
   X,
   Zap,
-  Smartphone
+  Sparkles,
+  Globe
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
-  const [activeTab, setActiveTab] = useState<"terminal" | "extractor" | "scraper" | "packer" | "runner" | "anonymity" | "scanner" | "catalog" | "telegram" | "mobile">("terminal");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "terminal" | "osint" | "scanner" | "catalog" | "telegram" | "encryptor" | "extractor">("dashboard");
   const [mute, setMute] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Auto-login if session exists
   useEffect(() => {
+    // Dynamically store server url if loaded on standard http/https protocol
+    const origin = window.location.origin;
+    if (window.location.protocol.startsWith("http") && !origin.includes("localhost") && !origin.includes("127.0.0.1")) {
+      localStorage.setItem("jack_os_api_server_url", origin);
+    }
+
     const saved = localStorage.getItem("jack_os_user");
     if (saved) {
       try {
@@ -50,10 +51,18 @@ export default function App() {
     }
   }, []);
 
+  const handleUpdateUser = (updatedUser: User | null) => {
+    setUser(updatedUser);
+    if (updatedUser) {
+      localStorage.setItem("jack_os_user", JSON.stringify(updatedUser));
+    } else {
+      localStorage.removeItem("jack_os_user");
+    }
+  };
+
   const handleLogout = () => {
     sound.playError();
-    localStorage.removeItem("jack_os_user");
-    setUser(null);
+    handleUpdateUser(null);
   };
 
   const selectTab = (tab: typeof activeTab) => {
@@ -74,20 +83,18 @@ export default function App() {
   };
 
   if (!user) {
-    return <LoginScreen onLoginSuccess={(u) => setUser(u)} />;
+    return <LoginScreen onLoginSuccess={(u) => handleUpdateUser(u)} />;
   }
 
   const navItems = [
-    { id: "terminal" as const, label: "OS CONSOLE", icon: Terminal, color: "text-cyan-400" },
-    { id: "extractor" as const, label: "API EXTRACTOR", icon: Zap, color: "text-amber-400" },
-    { id: "scraper" as const, label: "DATA EXTRACTOR", icon: Globe, color: "text-emerald-400" },
-    { id: "packer" as const, label: "SCRIPT CRYPTER", icon: Code2, color: "text-cyan-400" },
-    { id: "runner" as const, label: "SCRIPT RUNNER", icon: PlayCircle, color: "text-cyan-400" },
-    { id: "anonymity" as const, label: "ANONYMITY & PROXY", icon: Lock, color: "text-indigo-400" },
-    { id: "scanner" as const, label: "PORT SWEEPER", icon: Activity, color: "text-amber-500" },
-    { id: "catalog" as const, label: "APP CABINET", icon: LayoutGrid, color: "text-cyan-400" },
-    { id: "telegram" as const, label: "TELEGRAM CHANNELS", icon: Bot, color: "text-cyan-400" },
-    { id: "mobile" as const, label: "MOBILE INSTALLER", icon: Smartphone, color: "text-cyan-400" },
+    { id: "dashboard" as const, label: "HOME DASHBOARD", icon: Sparkles, color: "text-amber-400 font-extrabold" },
+    { id: "terminal" as const, label: "OS CONSOLE", icon: Terminal, color: "text-amber-400" },
+    { id: "osint" as const, label: "OSINT GIT SUITE", icon: Zap, color: "text-amber-400 font-black" },
+    { id: "extractor" as const, label: "API EXTRACTOR", icon: Globe, color: "text-amber-400 font-bold" },
+    { id: "encryptor" as const, label: "PYTHON CRYPTER", icon: Lock, color: "text-amber-400 font-bold" },
+    { id: "scanner" as const, label: "PORT SWEEPER", icon: Activity, color: "text-amber-400" },
+    { id: "catalog" as const, label: "APP CABINET", icon: LayoutGrid, color: "text-amber-400" },
+    { id: "telegram" as const, label: "TELEGRAM CHANNELS", icon: Bot, color: "text-amber-400" },
   ];
 
   return (
@@ -230,16 +237,14 @@ export default function App() {
             transition={{ duration: 0.2 }}
             className="space-y-6"
           >
+            {activeTab === "dashboard" && <Dashboard user={user} onNavigate={selectTab} onQuickScan={() => selectTab("osint")} />}
             {activeTab === "terminal" && <TerminalApp user={user} onLogout={handleLogout} />}
-            {activeTab === "extractor" && <ApiExtractor user={user} />}
-            {activeTab === "scraper" && <ScraperSuite user={user} />}
-            {activeTab === "packer" && <ScriptPacker user={user} />}
-            {activeTab === "runner" && <ScriptRunner user={user} />}
-            {activeTab === "anonymity" && <AnonymitySuite user={user} />}
+            {activeTab === "osint" && <OsintGitSuite user={user} />}
+            {activeTab === "extractor" && <OsintGitSuite user={user} initialTab="extractor" />}
+            {activeTab === "encryptor" && <PythonEncryptor user={user} />}
             {activeTab === "scanner" && <NetworkScanner user={user} />}
             {activeTab === "catalog" && <AppCatalog />}
-            {activeTab === "telegram" && <TelegramSettings user={user} onUpdateUser={(u) => setUser(u)} />}
-            {activeTab === "mobile" && <MobileAppCenter user={user} />}
+            {activeTab === "telegram" && <TelegramSettings user={user} onUpdateUser={(u) => handleUpdateUser(u)} />}
           </motion.div>
         </AnimatePresence>
       </main>

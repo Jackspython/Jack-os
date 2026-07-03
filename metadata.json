@@ -1,6 +1,6 @@
 {
   "name": "Jack OS Hub",
-  "description": "An advanced digital workspace featuring a scrapers suite, script obfuscation and crypter, multi-script runner IDE, proxy scanner, and Telegram bot notification relays.",
+  "description": "An advanced security intelligence and reconnaissance workspace featuring OSINT auditors, website crawler spiders, archive indexers, defensive security utilities, and secure Telegram connection hubs.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

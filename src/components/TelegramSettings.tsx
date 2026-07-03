@@ -3,6 +3,7 @@ import { sound } from "./AudioEngine";
 import { Send, Bot, Check, AlertCircle, RefreshCw } from "lucide-react";
 import { motion } from "motion/react";
 import { User } from "../types";
+import { apiFetch } from "../utils/api";
 
 interface TelegramSettingsProps {
   user: User;
@@ -24,7 +25,7 @@ export default function TelegramSettings({ user, onUpdateUser }: TelegramSetting
     setStatus({ type: "", message: "" });
 
     try {
-      const response = await fetch("/api/auth/update-telegram", {
+      const response = await apiFetch("/api/auth/update-telegram", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -63,7 +64,7 @@ export default function TelegramSettings({ user, onUpdateUser }: TelegramSetting
     setStatus({ type: "", message: "" });
 
     try {
-      const response = await fetch("/api/telegram/test", {
+      const response = await apiFetch("/api/telegram/test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

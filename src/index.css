@@ -1,1 +1,53 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-display: "Space Grotesk", sans-serif;
+
+  /* Transform cyan palette into a premium high-contrast Cyber Tactical Amber Gold */
+  --color-cyan-50: #fefdf0;
+  --color-cyan-100: #fefbd6;
+  --color-cyan-200: #fdf59f;
+  --color-cyan-300: #fbe95c;
+  --color-cyan-400: #f9d51c; /* High-visibility Amber */
+  --color-cyan-500: #e2b705; /* Tactical Gold */
+  --color-cyan-600: #c29103;
+  --color-cyan-700: #9b6c03;
+  --color-cyan-800: #7f5507;
+  --color-cyan-900: #68440a;
+  --color-cyan-950: #2c1a01;
+
+  /* Transform slate palette into an elite deep charcoal-obsidian finish */
+  --color-slate-50: #fafafa;
+  --color-slate-100: #f4f4f5;
+  --color-slate-200: #e4e4e7;
+  --color-slate-300: #d4d4d8;
+  --color-slate-400: #a1a1aa;
+  --color-slate-500: #71717a;
+  --color-slate-600: #52525b;
+  --color-slate-700: #3f3f46;
+  --color-slate-800: #1a1a1e; /* Deep tactical border */
+  --color-slate-900: #0f0f11; /* Sleek charcoal card background */
+  --color-slate-950: #060607; /* Dark tactical obsidian background */
+}
+
+/* Custom Tactical Scrollbar Style */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-slate-950);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-slate-800);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-cyan-500);
+}
